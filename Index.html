@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Radar Locales</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e0f; --surface: #161618; --surface2: #1e1e21; --border: #2a2a2e;
+    --text: #f0f0ee; --muted: #6b6b72; --accent: #c8f135; --accent2: #7c6dfa;
+    --red: #ff5c5c; --amber: #ffb23f; --green: #4ade80; --blue: #60a5fa;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 13px; }
+
+.header {
+background: var(–surface); border-bottom: 1px solid var(–border);
+display: flex; align-items: center; gap: 16px; padding: 0 20px;
+height: 54px; position: sticky; top: 0; z-index: 1000;
+}
+.logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.logo-icon { width: 30px; height: 30px; background: var(–accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.logo-text { font-family: ‘Syne’, sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.5px; color: var(–text); }
+.search-bar { flex: 1; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; padding: 7px 13px; color: var(–text); font-size: 13px; font-family: ‘DM Sans’, sans-serif; outline: none; transition: border-color 0.2s; }
+.search-bar:focus { border-color: var(–accent); }
+.search-bar::placeholder { color: var(–muted); }
+.country-toggle { display: flex; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.country-btn { padding: 7px 14px; border: none; background: transparent; color: var(–muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: ‘DM Sans’, sans-serif; transition: all 0.15s; }
+.country-btn.active { background: var(–accent); color: #0e0e0f; }
+.btn-save { background: var(–accent2); color: #fff; border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: ‘DM Sans’, sans-serif; flex-shrink: 0; transition: opacity 0.15s; }
+.btn-save:hover { opacity: 0.85; }
+
+.layout { display: grid; grid-template-columns: 210px 1fr 290px; gap: 14px; padding: 14px; max-width: 1380px; margin: 0 auto; }
+
+.panel { background: var(–surface); border: 1px solid var(–border); border-radius: 14px; overflow: hidden; }
+.panel-header { padding: 12px 14px 8px; font-family: ‘Syne’, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(–muted); border-bottom: 1px solid var(–border); }
+
+.sidebar { display: flex; flex-direction: column; gap: 14px; }
+.saved-item { padding: 9px 12px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; margin: 6px 8px 0; }
+.saved-item:hover { background: var(–surface2); border-color: var(–border); }
+.saved-item-label { font-weight: 600; font-size: 12px; margin-bottom: 2px; }
+.saved-item-meta { font-size: 11px; color: var(–muted); }
+.fav-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; }
+.fav-item:hover { background: var(–surface2); }
+.fav-item.active { border-left-color: var(–accent); background: var(–surface2); }
+.fav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(–accent); flex-shrink: 0; }
+.fav-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fav-city { font-size: 10px; color: var(–muted); }
+
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.metric-card { background: var(–surface); border: 1px solid var(–border); border-radius: 12px; padding: 14px 16px; position: relative; overflow: hidden; }
+.metric-card::before { content: ‘’; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.metric-card.c1::before { background: var(–accent2); }
+.metric-card.c2::before { background: var(–amber); }
+.metric-card.c3::before { background: var(–green); }
+.metric-card.c4::before { background: var(–red); }
+.metric-value { font-family: ‘Syne’, sans-serif; font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.metric-card.c1 .metric-value { color: var(–accent2); }
+.metric-card.c2 .metric-value { color: var(–amber); }
+.metric-card.c3 .metric-value { color: var(–green); }
+.metric-card.c4 .metric-value { color: var(–red); }
+.metric-label { font-size: 11px; color: var(–muted); }
+
+.map-wrap { background: var(–surface); border: 1px solid var(–border); border-radius: 14px; overflow: hidden; }
+.map-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(–border); }
+.map-title { font-family: ‘Syne’, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(–muted); }
+.map-count { font-size: 11px; color: var(–accent); font-weight: 600; }
+#map { width: 100%; height: 280px; }
+
+.leaflet-container { background: #1a1a1f !important; }
+.leaflet-popup-content-wrapper { background: #1e1e21 !important; color: #f0f0ee !important; border: 1px solid #2a2a2e !important; border-radius: 10px !important; box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important; font-family: ‘DM Sans’, sans-serif !important; font-size: 12px !important; }
+.leaflet-popup-tip { background: #1e1e21 !important; }
+.leaflet-popup-close-button { color: #6b6b72 !important; }
+.leaflet-control-zoom a { background: #1e1e21 !important; color: #f0f0ee !important; border-color: #2a2a2e !important; }
+.leaflet-control-attribution { background: rgba(14,14,15,0.7) !important; color: #6b6b72 !important; font-size: 9px !important; }
+
+.tabs { display: flex; gap: 2px; background: var(–surface); border: 1px solid var(–border); border-radius: 10px; padding: 3px; width: fit-content; }
+.tab { padding: 5px 16px; border: none; border-radius: 7px; background: transparent; color: var(–muted); font-size: 12px; font-weight: 600; cursor: pointer; font-family: ‘DM Sans’, sans-serif; transition: all 0.15s; }
+.tab.active { background: var(–accent); color: #0e0e0f; }
+
+.table-wrap { background: var(–surface); border: 1px solid var(–border); border-radius: 14px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(–surface2); border-bottom: 1px solid var(–border); }
+th { padding: 10px 13px; text-align: left; font-family: ‘Syne’, sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(–muted); }
+tbody tr { border-bottom: 1px solid var(–border); cursor: pointer; transition: background 0.1s; border-left: 2px solid transparent; }
+tbody tr:hover { background: var(–surface2); }
+tbody tr.selected { background: #1e1e2a; border-left-color: var(–accent); }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 10px 13px; }
+.td-name { font-weight: 600; font-size: 13px; }
+.td-muted { color: var(–muted); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; font-family: ‘Syne’, sans-serif; }
+.fav-btn { background: none; border: none; cursor: pointer; font-size: 15px; opacity: 0.25; transition: opacity 0.15s, transform 0.15s; }
+.fav-btn.active { opacity: 1; }
+.fav-btn:hover { transform: scale(1.2); }
+.empty { padding: 40px; text-align: center; color: var(–muted); font-size: 13px; }
+
+.right-panel { display: flex; flex-direction: column; gap: 12px; }
+.filter-group { padding: 12px 14px; border-bottom: 1px solid var(–border); }
+.filter-label { font-size: 10px; font-weight: 600; color: var(–muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+select { width: 100%; padding: 7px 10px; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; color: var(–text); font-size: 12px; font-family: ‘DM Sans’, sans-serif; outline: none; cursor: pointer; }
+select:focus { border-color: var(–accent); }
+.checkbox-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; cursor: pointer; border-bottom: 1px solid var(–border); font-size: 12px; transition: background 0.1s; }
+.checkbox-row:hover { background: var(–surface2); }
+input[type=checkbox] { width: 14px; height: 14px; accent-color: var(–accent); cursor: pointer; }
+.btn-reset { margin: 10px 14px; width: calc(100% - 28px); padding: 7px; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; color: var(–muted); font-size: 11px; font-weight: 600; cursor: pointer; font-family: ‘DM Sans’, sans-serif; transition: color 0.15s; }
+.btn-reset:hover { color: var(–text); }
+
+.ficha-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 14px; border-bottom: 1px solid var(–border); }
+.ficha-name { font-family: ‘Syne’, sans-serif; font-size: 15px; font-weight: 800; line-height: 1.3; }
+.btn-fav-ficha { flex-shrink: 0; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; padding: 5px 11px; font-size: 11px; font-weight: 600; color: var(–muted); cursor: pointer; font-family: ‘DM Sans’, sans-serif; transition: all 0.15s; }
+.btn-fav-ficha.active { background: #3a3a1a; border-color: var(–accent); color: var(–accent); }
+.ficha-data { padding: 12px 14px; border-bottom: 1px solid var(–border); }
+.ficha-row { display: flex; gap: 6px; margin-bottom: 7px; font-size: 12px; }
+.ficha-key { color: var(–muted); flex-shrink: 0; width: 70px; }
+.ficha-val { color: var(–text); font-weight: 500; }
+.ficha-val.highlight { color: var(–amber); }
+.ficha-map-btn { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid var(–border); font-size: 11px; color: var(–accent); cursor: pointer; background: none; border-top: none; border-left: none; border-right: none; width: 100%; text-align: left; font-family: ‘DM Sans’, sans-serif; font-weight: 600; transition: background 0.15s; }
+.ficha-map-btn:hover { background: var(–surface2); }
+.status-pills { display: flex; flex-wrap: wrap; gap: 5px; padding: 12px 14px; border-bottom: 1px solid var(–border); }
+.status-pill { padding: 4px 10px; border-radius: 20px; border: none; font-size: 10px; font-weight: 700; cursor: pointer; font-family: ‘Syne’, sans-serif; transition: all 0.15s; }
+.note-area { padding: 12px 14px; }
+.note-label { font-size: 10px; font-weight: 600; color: var(–muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+textarea { width: 100%; min-height: 90px; background: var(–surface2); border: 1px solid var(–border); border-radius: 8px; padding: 9px 11px; color: var(–text); font-size: 12px; font-family: ‘DM Sans’, sans-serif; resize: vertical; outline: none; transition: border-color 0.2s; }
+textarea:focus { border-color: var(–accent); }
+textarea::placeholder { color: var(–muted); }
+.btn-save-note { margin-top: 8px; width: 100%; padding: 9px; background: var(–accent); border: none; border-radius: 8px; color: #0e0e0f; font-size: 12px; font-weight: 700; cursor: pointer; font-family: ‘Syne’, sans-serif; transition: opacity 0.2s; }
+.btn-save-note:hover { opacity: 0.85; }
+.btn-save-note.saved { background: var(–green); }
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease forwards; }
+.main-col { display: flex; flex-direction: column; gap: 12px; }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <span class="logo-text">Radar Locales</span>
+  </div>
+  <input id="search" class="search-bar" type="text" placeholder="Buscar negocio, zona, dirección..." oninput="render()" />
+  <div class="country-toggle">
+    <button class="country-btn active" id="btn-arg" onclick="setCountry('Argentina')">Argentina</button>
+    <button class="country-btn" id="btn-uru" onclick="setCountry('Uruguay')">Uruguay</button>
+  </div>
+  <button class="btn-save" onclick="saveSearch()">+ Guardar búsqueda</button>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-header">Búsquedas guardadas</div>
+      <div id="saved-list" style="padding-bottom:8px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">Favoritos</div>
+      <div id="fav-list" style="padding-bottom:8px;"></div>
+    </div>
+  </div>
+
+  <div class="main-col">
+    <div class="metrics" id="metrics"></div>
+
+```
+<div class="map-wrap">
+  <div class="map-header">
+    <span class="map-title">Mapa interactivo</span>
+    <span class="map-count" id="map-count">cargando…</span>
+  </div>
+  <div id="map"></div>
+</div>
+
+<div style="display:flex;gap:8px;align-items:center;">
+  <div class="tabs">
+    <button class="tab active" id="tab-res" onclick="setTab('resultados')">Resultados</button>
+    <button class="tab" id="tab-fav" onclick="setTab('favoritos')">⭐ Favoritos</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Negocio</th><th>Actividad</th><th>Ciudad</th>
+        <th>Teléfono</th><th>Web</th><th>Estado</th><th>★</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+  <div id="empty" class="empty" style="display:none">No hay resultados con estos filtros.</div>
+</div>
+```
+
+  </div>
+
+  <div class="right-panel">
+    <div class="panel">
+      <div class="panel-header">Filtros</div>
+      <div class="filter-group">
+        <div class="filter-label">Actividad</div>
+        <select id="f-activity" onchange="render()">
+          <option>Todos</option>
+          <option>Gastronomía</option><option>Hogar</option><option>Salud</option>
+          <option>Educación</option><option>Automotriz</option><option>Moda</option><option>Servicios</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Estado del lead</div>
+        <select id="f-estado" onchange="render()">
+          <option>Todos</option>
+          <option>Nuevo</option><option>Revisado</option><option>Interesante</option>
+          <option>Contactado</option><option>Descartado</option>
+        </select>
+      </div>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-noweb" onchange="render()" /> Solo sin página web
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="f-phone" onchange="render()" /> Solo con teléfono
+      </label>
+      <button class="btn-reset" onclick="resetFilters()">Limpiar filtros</button>
+    </div>
+
+```
+<div class="panel" id="ficha-panel">
+  <div class="empty" style="padding:28px">Selecciona un negocio para ver su ficha.</div>
+</div>
+```
+
+  </div>
+</div>
+
+<script>
+const SC = {
+  Nuevo:       { bg:'#3730a322', text:'#818cf8' },
+  Revisado:    { bg:'#78350f22', text:'#fbbf24' },
+  Interesante: { bg:'#14532d22', text:'#4ade80' },
+  Contactado:  { bg:'#1e3a5f22', text:'#60a5fa' },
+  Descartado:  { bg:'#1f1f2422', text:'#6b7280' },
+};
+
+let businesses = [
+  { id:1,  negocio:'Café Central',           actividad:'Gastronomía', telefono:'+54 223 555 0123', web:false, direccion:'Av. Colón 1842',         zona:'Centro',       ciudad:'Mar del Plata', pais:'Argentina', estado:'Nuevo',       fuente:'Datos públicos', nota_interna:'',                       favorito:true,  lat:-38.0055, lng:-57.5575 },
+  { id:2,  negocio:'Ferretería Norte',        actividad:'Hogar',       telefono:'+54 223 555 0187', web:true,  direccion:'San Juan 921',            zona:'Macrocentro',  ciudad:'Mar del Plata', pais:'Argentina', estado:'Revisado',     fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-38.0021, lng:-57.5481 },
+  { id:3,  negocio:'Óptica Centro',           actividad:'Salud',       telefono:'+598 2 555 0144',  web:false, direccion:'18 de Julio 1450',        zona:'Centro',       ciudad:'Montevideo',    pais:'Uruguay',   estado:'Interesante',  fuente:'Datos públicos', nota_interna:'Posible lead fuerte',    favorito:true,  lat:-34.9011, lng:-56.1645 },
+  { id:4,  negocio:'Panadería La Esquina',    actividad:'Gastronomía', telefono:'',                 web:false, direccion:'Belgrano 340',            zona:'Barrio Sur',   ciudad:'Mar del Plata', pais:'Argentina', estado:'Nuevo',        fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-38.0120, lng:-57.5490 },
+  { id:5,  negocio:'Librería Studium',        actividad:'Educación',   telefono:'+54 223 555 0291', web:false, direccion:'Córdoba 2156',            zona:'Centro',       ciudad:'Mar del Plata', pais:'Argentina', estado:'Contactado',   fuente:'Datos públicos', nota_interna:'Llamé, muy interesados', favorito:true,  lat:-38.0037, lng:-57.5498 },
+  { id:6,  negocio:'Taller Mecánico Pérez',   actividad:'Automotriz',  telefono:'+54 223 555 0342', web:false, direccion:'Ruta 2 km 4',             zona:'Periferia',    ciudad:'Mar del Plata', pais:'Argentina', estado:'Nuevo',        fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-38.0310, lng:-57.5700 },
+  { id:7,  negocio:'Clínica Dental Sur',      actividad:'Salud',       telefono:'+598 2 555 0198',  web:false, direccion:'Av. 18 de Julio 890',     zona:'Centro',       ciudad:'Montevideo',    pais:'Uruguay',   estado:'Interesante',  fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-34.9058, lng:-56.1712 },
+  { id:8,  negocio:'Indumentaria Moda Playa', actividad:'Moda',        telefono:'+54 223 555 0401', web:false, direccion:'Güemes 2890',             zona:'Güemes',       ciudad:'Mar del Plata', pais:'Argentina', estado:'Descartado',   fuente:'Datos públicos', nota_interna:'No les interesa',        favorito:false, lat:-38.0089, lng:-57.5423 },
+  { id:9,  negocio:'Verdulería El Verde',     actividad:'Gastronomía', telefono:'+54 223 555 0512', web:false, direccion:'Independencia 1234',      zona:'Barrio Norte', ciudad:'Mar del Plata', pais:'Argentina', estado:'Nuevo',        fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-37.9980, lng:-57.5510 },
+  { id:10, negocio:'Estudio Contable Ramos',  actividad:'Servicios',   telefono:'+598 2 555 0267',  web:true,  direccion:'Plaza Independencia 832', zona:'Centro',       ciudad:'Montevideo',    pais:'Uruguay',   estado:'Revisado',     fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-34.9065, lng:-56.1887 },
+  { id:11, negocio:'Peluquería Estilo',       actividad:'Servicios',   telefono:'+54 223 555 0601', web:false, direccion:'Moreno 1122',             zona:'Centro',       ciudad:'Mar del Plata', pais:'Argentina', estado:'Nuevo',        fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-38.0044, lng:-57.5530 },
+  { id:12, negocio:'Farmacia del Pueblo',     actividad:'Salud',       telefono:'+598 2 555 0311',  web:false, direccion:'Colonia 789',             zona:'Barrio Sur',   ciudad:'Montevideo',    pais:'Uruguay',   estado:'Nuevo',        fuente:'Datos públicos', nota_interna:'',                       favorito:false, lat:-34.9120, lng:-56.1780 },
+];
+
+let savedSearches = [
+  { id:1, label:'Mar del Plata · Sin web', meta:'Demo · 7 negocios' },
+  { id:2, label:'Montevideo · Gastronomía', meta:'Demo · 4 negocios' },
+];
+
+let country = 'Argentina';
+let activeTab = 'resultados';
+let selectedId = 1;
+let noteValue = '';
+let noteSaved = false;
+let map = null;
+let markers = {};
+
+function initMap() {
+  map = L.map('map', { center: [-38.0055, -57.5575], zoom: 12, zoomControl: true });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd', maxZoom: 19,
+  }).addTo(map);
+}
+
+function makeIcon(color, isSelected) {
+  const s = isSelected ? 18 : 12;
+  const ring = isSelected ? `<circle cx="16" cy="16" r="13" fill="none" stroke="${color}" stroke-width="1.5" opacity="0.5"/>` : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">${ring}<circle cx="16" cy="16" r="${s/2}" fill="${color}" stroke="#0e0e0f" stroke-width="2"/></svg>`;
+  return L.divIcon({ html: svg, className: '', iconSize: [32,32], iconAnchor: [16,16] });
+}
+
+function updateMap(filtered) {
+  if (!map) return;
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  if (!filtered.length) { document.getElementById('map-count').textContent = '0 ubicaciones'; return; }
+  const bounds = [];
+  filtered.forEach(b => {
+    if (!b.lat || !b.lng) return;
+    const isSelected = b.id === selectedId;
+    const color = SC[b.estado]?.text || '#c8f135';
+    const marker = L.marker([b.lat, b.lng], { icon: makeIcon(color, isSelected), zIndexOffset: isSelected ? 1000 : 0 })
+      .addTo(map)
+      .bindPopup(`
+        <div style="min-width:170px;padding:2px">
+          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:13px;margin-bottom:6px;color:#f0f0ee">${b.negocio}</div>
+          <div style="color:#9ca3af;font-size:11px;margin-bottom:2px">📍 ${b.direccion}</div>
+          <div style="color:#9ca3af;font-size:11px;margin-bottom:2px">🏷 ${b.actividad}</div>
+          ${b.telefono ? `<div style="color:#9ca3af;font-size:11px;margin-bottom:6px">📞 ${b.telefono}</div>` : '<div style="margin-bottom:6px"></div>'}
+          <span style="background:${SC[b.estado].bg};color:${SC[b.estado].text};padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">${b.estado}</span>
+          ${!b.web ? '<span style="background:#78350f33;color:#fbbf24;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;margin-left:4px">Sin web</span>' : ''}
+        </div>
+      `);
+    marker.on('click', () => selectBusiness(b.id));
+    markers[b.id] = marker;
+    bounds.push([b.lat, b.lng]);
+  });
+  if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+  else if (bounds.length === 1) map.setView(bounds[0], 14);
+  if (markers[selectedId]) markers[selectedId].openPopup();
+  document.getElementById('map-count').textContent = `${filtered.length} ubicación${filtered.length!==1?'es':''}`;
+}
+
+function getFiltered() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const act = document.getElementById('f-activity').value;
+  const est = document.getElementById('f-estado').value;
+  const noWeb = document.getElementById('f-noweb').checked;
+  const withPhone = document.getElementById('f-phone').checked;
+  return businesses.filter(b => {
+    const text = [b.negocio, b.direccion, b.zona, b.ciudad].join(' ').toLowerCase();
+    return (!q||text.includes(q)) && b.pais===country && (act==='Todos'||b.actividad===act) && (est==='Todos'||b.estado===est) && (!noWeb||!b.web) && (!withPhone||b.telefono);
+  });
+}
+
+function setCountry(c) {
+  country = c;
+  document.getElementById('btn-arg').classList.toggle('active', c==='Argentina');
+  document.getElementById('btn-uru').classList.toggle('active', c==='Uruguay');
+  render();
+}
+
+function setTab(t) {
+  activeTab = t;
+  document.getElementById('tab-res').classList.toggle('active', t==='resultados');
+  document.getElementById('tab-fav').classList.toggle('active', t==='favoritos');
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('search').value = '';
+  document.getElementById('f-activity').value = 'Todos';
+  document.getElementById('f-estado').value = 'Todos';
+  document.getElementById('f-noweb').checked = false;
+  document.getElementById('f-phone').checked = false;
+  render();
+}
+
+function saveSearch() {
+  const filtered = getFiltered();
+  const act = document.getElementById('f-activity').value;
+  savedSearches.unshift({ id:Date.now(), label:`${country} · ${act!=='Todos'?act:'Todos'}`, meta:`${filtered.length} negocios` });
+  renderSidebar();
+}
+
+function toggleFav(id, e) {
+  if (e) e.stopPropagation();
+  const b = businesses.find(x=>x.id===id);
+  if (b) b.favorito = !b.favorito;
+  render();
+}
+
+function changeStatus(id, estado) {
+  const b = businesses.find(x=>x.id===id);
+  if (b) b.estado = estado;
+  render();
+}
+
+function selectBusiness(id) {
+  selectedId = id;
+  const b = businesses.find(x=>x.id===id);
+  noteValue = b ? b.nota_interna : '';
+  noteSaved = false;
+  render();
+  if (b && b.lat && map) {
+    map.setView([b.lat, b.lng], 15, { animate: true });
+    if (markers[id]) setTimeout(() => markers[id].openPopup(), 300);
+  }
+}
+
+function saveNote() {
+  const b = businesses.find(x=>x.id===selectedId);
+  if (b) {
+    b.nota_interna = noteValue;
+    noteSaved = true;
+    renderFicha(b);
+    setTimeout(() => { noteSaved=false; renderFicha(b); }, 2000);
+  }
+}
+
+function openInGoogleMaps(b) {
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.negocio+' '+b.direccion+' '+b.ciudad)}`, '_blank');
+}
+
+function renderMetrics(filtered) {
+  document.getElementById('metrics').innerHTML = [
+    { label:'Total leads',    value:filtered.length,                       cls:'c1' },
+    { label:'Sin página web', value:filtered.filter(b=>!b.web).length,    cls:'c2' },
+    { label:'Con teléfono',   value:filtered.filter(b=>b.telefono).length, cls:'c3' },
+    { label:'Favoritos',      value:filtered.filter(b=>b.favorito).length, cls:'c4' },
+  ].map(m=>`<div class="metric-card ${m.cls} fade-in"><div class="metric-value">${m.value}</div><div class="metric-label">${m.label}</div></div>`).join('');
+}
+
+function renderTable(rows) {
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty');
+  if (!rows.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = rows.map(b=>`
+    <tr class="${selectedId===b.id?'selected':''}" onclick="selectBusiness(${b.id})">
+      <td class="td-name">${b.negocio}</td>
+      <td class="td-muted">${b.actividad}</td>
+      <td class="td-muted">${b.ciudad}</td>
+      <td style="color:${b.telefono?'var(--text)':'var(--muted)'}">${b.telefono||'—'}</td>
+      <td><span class="badge" style="background:${b.web?'#14532d33':'#78350f33'};color:${b.web?'var(--green)':'var(--amber)'}">${b.web?'Sí':'No'}</span></td>
+      <td><span class="badge" style="background:${SC[b.estado].bg};color:${SC[b.estado].text}">${b.estado}</span></td>
+      <td><button class="fav-btn ${b.favorito?'active':''}" onclick="toggleFav(${b.id},event)">⭐</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderFicha(b) {
+  const panel = document.getElementById('ficha-panel');
+  if (!b) { panel.innerHTML='<div class="empty" style="padding:28px">Selecciona un negocio para ver su ficha.</div>'; return; }
+  const statuses = ['Nuevo','Revisado','Interesante','Contactado','Descartado'];
+  panel.innerHTML = `
+    <div class="ficha-header">
+      <div class="ficha-name">${b.negocio}</div>
+      <button class="btn-fav-ficha ${b.favorito?'active':''}" onclick="toggleFav(${b.id})">${b.favorito?'⭐ Favorito':'Guardar'}</button>
+    </div>
+    <div class="ficha-data">
+      <div class="ficha-row"><span class="ficha-key">Actividad</span><span class="ficha-val">${b.actividad}</span></div>
+      <div class="ficha-row"><span class="ficha-key">Teléfono</span><span class="ficha-val">${b.telefono||'No disponible'}</span></div>
+      <div class="ficha-row"><span class="ficha-key">Dirección</span><span class="ficha-val">${b.direccion}</span></div>
+      <div class="ficha-row"><span class="ficha-key">Ciudad</span><span class="ficha-val">${b.ciudad}, ${b.pais}</span></div>
+      <div class="ficha-row"><span class="ficha-key">Web</span><span class="ficha-val ${!b.web?'highlight':''}">${b.web?'Sí tiene':'✗ Sin web — oportunidad'}</span></div>
+      <div class="ficha-row"><span class="ficha-key">Fuente</span><span class="ficha-val" style="color:var(--muted)">${b.fuente}</span></div>
+    </div>
+    <button class="ficha-map-btn" onclick="openInGoogleMaps(businesses.find(x=>x.id==${b.id}))">🗺 Ver en Google Maps ↗</button>
+    <div class="status-pills">
+      ${statuses.map(s=>`<button class="status-pill" onclick="changeStatus(${b.id},'${s}')" style="background:${b.estado===s?SC[s].text:SC[s].bg};color:${b.estado===s?'#0e0e0f':SC[s].text}">${s}</button>`).join('')}
+    </div>
+    <div class="note-area">
+      <div class="note-label">Nota interna</div>
+      <textarea placeholder="Ej: Llamé el lunes, muy interesados…" oninput="noteValue=this.value">${b.nota_interna||''}</textarea>
+
+```
+  <button class="btn-save-note ${noteSaved?'saved':''}" onclick="saveNote()">${noteSaved?'✓ Guardado':'Guardar nota'}</button>
+</div>
+```
+
+`;
+}
+
+function renderSidebar() {
+document.getElementById(‘saved-list’).innerHTML = savedSearches.map(s=>`<div class="saved-item"><div class="saved-item-label">${s.label}</div><div class="saved-item-meta">${s.meta}</div></div>`).join(’’);
+const favs = businesses.filter(b=>b.favorito);
+document.getElementById(‘fav-list’).innerHTML = !favs.length
+? ‘<div style="padding:12px 14px;font-size:12px;color:var(--muted)">Sin favoritos aún.</div>’
+: favs.map(b=>`<div class="fav-item ${selectedId===b.id?'active':''}" onclick="selectBusiness(${b.id})"><div class="fav-dot"></div><div><div class="fav-name">${b.negocio}</div><div class="fav-city">${b.ciudad}</div></div></div>`).join(’’);
+}
+
+function render() {
+const filtered = getFiltered();
+const tableRows = activeTab===‘favoritos’ ? businesses.filter(b=>b.favorito) : filtered;
+document.getElementById(‘tab-res’).textContent = `Resultados (${filtered.length})`;
+document.getElementById(‘tab-fav’).textContent = `⭐ Favoritos (${businesses.filter(b=>b.favorito).length})`;
+renderMetrics(filtered);
+updateMap(filtered);
+renderTable(tableRows);
+const sel = businesses.find(b=>b.id===selectedId) || filtered[0] || null;
+if (sel && selectedId!==sel.id) { selectedId=sel.id; noteValue=sel.nota_interna||’’; }
+renderFicha(sel);
+renderSidebar();
+}
+
+initMap();
+render();
+</script>
+
+</body>
+</html>
